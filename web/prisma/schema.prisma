@@ -1,0 +1,159 @@
+// prisma/schema.prisma
+// Fingerprint + Bluetooth proximity attendance system
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // or "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum Role {
+  ADMIN
+  LECTURER
+  STUDENT
+}
+
+enum SessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum AttendanceMethod {
+  BIOMETRIC // normal flow: BLE proximity + phone biometric
+  MANUAL    // lecturer marked the student present (reason required)
+}
+
+// ---------- Users ----------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  isActive     Boolean  @default(true)
+  // Lecturers are created by an admin, so we keep track of who created them
+  createdById  String?
+  createdBy    User?    @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers User[]   @relation("UserCreatedBy")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  lecturer Lecturer?
+  student  Student?
+}
+
+model Lecturer {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId    String   @unique
+  department String
+  courses    Course[]
+  sessions   Session[]
+}
+
+model Student {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matricNo    String  @unique
+  department  String
+  level       Int
+
+  device      Device?
+  enrollments Enrollment[]
+  attendances Attendance[]
+}
+
+// One registered phone per student (stops sharing phones for proxy attendance)
+model Device {
+  id         String   @id @default(cuid())
+  studentId  String   @unique
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  deviceId   String   @unique // unique id generated/stored by the app
+  model      String?
+  platform   String?  // android / ios
+  isApproved Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+// ---------- Courses ----------
+
+// Lecturer adds the courses they take
+model Course {
+  id         String   @id @default(cuid())
+  code       String   @unique // e.g. CPE 401
+  title      String
+  unit       Int      @default(2)
+  semester   String?
+  session    String?  // academic session, e.g. 2025/2026
+  lecturerId String
+  lecturer   Lecturer @relation(fields: [lecturerId], references: [id], onDelete: Restrict)
+  createdAt  DateTime @default(now())
+
+  enrollments Enrollment[]
+  sessions    Session[]
+
+  @@index([lecturerId])
+}
+
+// Students taking a course
+model Enrollment {
+  id        String   @id @default(cuid())
+  studentId String
+  courseId  String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+}
+
+// ---------- Attendance ----------
+
+// One class meeting. Lecturer opens it, the beacon broadcasts its rotating code.
+model Session {
+  id           String        @id @default(cuid())
+  courseId     String
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lecturerId   String
+  lecturer     Lecturer      @relation(fields: [lecturerId], references: [id])
+  topic        String?
+  status       SessionStatus @default(OPEN)
+  beaconSecret String        // secret used to generate the rotating beacon code
+  startsAt     DateTime      @default(now())
+  endsAt       DateTime?     // when the lecturer closes it or it expires
+  windowMins   Int           @default(15) // how long students may mark attendance
+  createdAt    DateTime      @default(now())
+
+  attendances Attendance[]
+
+  @@index([courseId])
+  @@index([lecturerId])
+}
+
+model Attendance {
+  id         String           @id @default(cuid())
+  sessionId  String
+  studentId  String
+  deviceId   String?          // device used (null for manual marking)
+  method     AttendanceMethod @default(BIOMETRIC)
+  beaconCode String?          // code the student's phone detected
+  rssi       Int?             // BLE signal strength, helps show proximity
+  note       String?          // reason when marked manually
+  markedAt   DateTime         @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // a student can only be marked once per session
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+}
