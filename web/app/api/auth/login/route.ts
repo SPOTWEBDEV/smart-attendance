@@ -29,7 +29,13 @@ export async function POST(req: NextRequest) {
 
   const res = NextResponse.json({
     token, // the Expo app stores this and sends it as a Bearer token
-    user: { id: user.id, fullName: user.fullName, email: user.email, role: user.role },
+    user: {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword,
+    },
   });
 
   // Cookie for the Next.js web dashboard

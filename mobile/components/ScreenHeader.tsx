@@ -5,15 +5,17 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/lib/theme";
 
-type Props = { title: string; subtitle?: string; right?: ReactNode };
+type Props = { title: string; subtitle?: string; right?: ReactNode; hideBack?: boolean };
 
-export function ScreenHeader({ title, subtitle, right }: Props) {
+export function ScreenHeader({ title, subtitle, right, hideBack }: Props) {
   const router = useRouter();
   return (
     <View style={styles.row}>
-      <Pressable onPress={() => router.back()} hitSlop={12}>
-        <Ionicons name="chevron-back" size={26} color={colors.text} />
-      </Pressable>
+      {!hideBack && (
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
+        </Pressable>
+      )}
       <View style={{ flex: 1 }}>
         <Text numberOfLines={1} style={styles.title}>{title}</Text>
         {!!subtitle && <Text numberOfLines={1} style={styles.sub}>{subtitle}</Text>}

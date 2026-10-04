@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import * as SecureStore from "expo-secure-store";
 
 export type Role = "ADMIN" | "LECTURER" | "STUDENT";
-export type User = { id: string; fullName: string; email: string; role: Role };
+export type User = { id: string; fullName: string; email: string; role: Role; mustChangePassword?: boolean };
 
 type AuthState = {
   user: User | null;
@@ -11,6 +11,7 @@ type AuthState = {
   loading: boolean; // true while we check secure storage on app start
   signIn: (token: string, user: User) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUser: (patch: Partial<User>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -53,8 +54,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  async function updateUser(patch: Partial<User>) {
+    if (!user) return;
+    const next = { ...user, ...patch };
+    await SecureStore.setItemAsync("user", JSON.stringify(next));
+    setUser(next);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, token, loading, signIn, signOut, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -52,6 +52,13 @@ export default function LecturerHome() {
         </View>
         <Pressable
           hitSlop={12}
+          style={{ marginRight: 18 }}
+          onPress={() => router.push("/lecturer/change-password")}
+        >
+          <Ionicons name="key-outline" size={24} color={colors.muted} />
+        </Pressable>
+        <Pressable
+          hitSlop={12}
           onPress={async () => {
             await signOut();
             router.replace("/role");

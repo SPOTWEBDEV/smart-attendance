@@ -93,7 +93,7 @@ export default function Login() {
       <View style={styles.footer}>
         {isLecturer ? (
           <Text style={styles.note}>
-            Lecturer accounts are created by the school admin.
+            Lecturer accounts are created by the school admin. Your first password is your email address, and you will be asked to change it.
           </Text>
         ) : (
           <Pressable onPress={() => router.push("/register")}>

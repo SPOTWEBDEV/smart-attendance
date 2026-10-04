@@ -1,12 +1,17 @@
-// prisma/seed.ts
-// Creates the first admin (admins can't be created through the app).
-// Run with: npx prisma db seed
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+// Seeding runs against direct connection string or standard database url
+const pool = new Pool({
+  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+});
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
-async function main() {
+async function seedAdmin() {
   const email = process.env.ADMIN_EMAIL ?? "admin@school.edu";
   const password = process.env.ADMIN_PASSWORD ?? "ChangeMe123!";
   const fullName = process.env.ADMIN_NAME ?? "System Admin";
@@ -22,9 +27,16 @@ async function main() {
   console.log(`Admin ready: ${admin.email}`);
 }
 
+async function main() {
+  await seedAdmin();
+}
+
 main()
   .catch((e) => {
     console.error(e);
-    process.exit(1);
+    process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+    await pool.end();
+  });

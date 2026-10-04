@@ -1,4 +1,10 @@
-.env
 node_modules
-/node_modules
-node_modules/
+.expo
+dist
+ios
+android
+.env
+.env.local
+*.apk
+*.aab
+.DS_Store

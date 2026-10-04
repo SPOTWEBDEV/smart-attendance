@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Smart Attendance",
+    "slug": "smart-attendance",
+    "version": "1.0.0",
+    "scheme": "smartattendance",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.esut.smartattendance",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Used to broadcast and detect the class attendance beacon",
+        "NSBluetoothPeripheralUsageDescription": "Used to broadcast the class attendance beacon"
+      }
+    },
+    "android": {
+      "package": "com.esut.smartattendance",
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_ADVERTISE",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "munim-bluetooth",
+      [
+        "expo-local-authentication",
+        { "faceIDPermission": "Confirm it's you when marking attendance" }
+      ],
+      [
+        "expo-build-properties",
+        { "android": { "usesCleartextTraffic": true } }
+      ]
+    ]
+  }
+}

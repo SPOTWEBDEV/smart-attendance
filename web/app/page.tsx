@@ -42,7 +42,8 @@ const roles = [
 ];
 
 export default function Landing() {
-  const apkUrl = process.env.NEXT_PUBLIC_APK_URL;
+  // Where the APK lives: an external link if you set one, otherwise the file in public/downloads
+  const apkUrl = process.env.NEXT_PUBLIC_APK_URL || "/downloads/smart-attendance.apk";
 
   return (
     <div className="bg-white text-slate-900">
@@ -89,6 +90,9 @@ export default function Landing() {
                 Get the app
               </a>
             </div>
+            <p className="mt-8 text-sm text-white/60">
+              A 300 Level project by <span className="text-white/90 font-medium">Ezea Ugochukwu Micheal</span>
+            </p>
           </div>
 
           {/* Phone mock-up */}
@@ -163,25 +167,37 @@ export default function Landing() {
 
       {/* Get the app */}
       <section id="get-app" className="bg-[#681609] text-white">
-        <div className="mx-auto max-w-6xl px-6 py-16 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+        <div className="mx-auto max-w-6xl px-6 py-16 grid md:grid-cols-2 gap-10 items-center">
           <div>
-            <h2 className="text-3xl font-bold">Get the Android app</h2>
+            <h2 className="text-3xl font-bold">Download the Android app</h2>
             <p className="mt-2 text-white/80 max-w-xl">
-              Students and lecturers use the mobile app. Install it, choose your role and sign in.
+              Students and lecturers use the mobile app. Download it, choose your role and sign in.
             </p>
-          </div>
-          {apkUrl ? (
             <a
               href={apkUrl}
-              className="px-6 py-3.5 rounded-lg bg-white text-[#681609] font-semibold hover:bg-slate-100 text-center"
+              download
+              className="mt-6 inline-flex items-center gap-2 px-6 py-3.5 rounded-lg bg-white text-[#681609] font-semibold hover:bg-slate-100"
             >
-              Download for Android
+              <span aria-hidden>↓</span> Download APK
             </a>
-          ) : (
-            <span className="px-6 py-3.5 rounded-lg bg-white/10 ring-1 ring-white/30 font-semibold text-center">
-              Download link coming soon
-            </span>
-          )}
+            <p className="mt-3 text-xs text-white/60">Android only · Smart Attendance for ESUT</p>
+          </div>
+
+          <ol className="space-y-3 text-sm text-white/90">
+            {[
+              "Tap Download APK and wait for the file to finish.",
+              "Open the downloaded file. If your phone asks, allow installing apps from this source.",
+              "Tap Install, then open Smart Attendance.",
+              "Turn on Bluetooth, choose Student or Lecturer and sign in.",
+            ].map((t, i) => (
+              <li key={t} className="flex gap-3">
+                <span className="h-6 w-6 shrink-0 rounded-full bg-white/15 flex items-center justify-center text-xs font-bold">
+                  {i + 1}
+                </span>
+                <span>{t}</span>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
@@ -194,10 +210,11 @@ export default function Landing() {
             </div>
             <div>
               <p className="text-slate-200 font-medium">Enugu State University of Science and Technology</p>
-              <p>Final-year project · Department of Computer Engineering</p>
+              <p>300 Level project · Department of Computer Engineering</p>
             </div>
           </div>
           <div className="md:text-right">
+            <p className="text-slate-200">Designed and developed by Ezea Ugochukwu Micheal</p>
             <p>Industrial training: SPOTWEB TECH</p>
             <Link href="/admin/login" className="hover:text-white">Admin sign in</Link>
           </div>
