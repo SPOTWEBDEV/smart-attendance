@@ -3,6 +3,7 @@
 //   1. Find the lecturer's Bluetooth beacon (proves you are in the room)
 //   2. Confirm with fingerprint / face unlock (proves it is you)
 //   3. Send it to the server, which checks everything again
+// If Bluetooth is off (now, or switched off later), the screen says so and carries on by itself once it is on.
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,7 +15,13 @@ import { Button } from "@/components/Button";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { getDeviceId } from "@/lib/device";
-import { prepareScan, sessionTag, startBeaconScan } from "@/lib/ble";
+import {
+  checkBluetooth,
+  openBluetoothSettings,
+  sessionTag,
+  startBeaconScan,
+  type BluetoothProblem,
+} from "@/lib/ble";
 import { colors } from "@/lib/theme";
 
 type Phase = "scanning" | "verifying" | "submitting" | "done" | "error";
@@ -27,19 +34,24 @@ export default function MarkAttendance() {
   const [phase, setPhase] = useState<Phase>("scanning");
   const [found, setFound] = useState(false);
   const [message, setMessage] = useState("");
-  const [blocked, setBlocked] = useState(""); // Bluetooth off / permission denied
+  const [blocked, setBlocked] = useState<BluetoothProblem | null>(null); // Bluetooth off / no permission / unavailable
   const [scanKey, setScanKey] = useState(0);
   const lastSeen = useRef<{ code: string; rssi?: number; at: number } | null>(null);
 
-  // 1. Scan for this session's beacon
+  // 1. Check Bluetooth, then scan for this session's beacon
   useEffect(() => {
     let cancelled = false;
     let stop: (() => void) | undefined;
-    setBlocked("");
+    setBlocked(null);
 
     (async () => {
+      const problem = await checkBluetooth(true);
+      if (cancelled) return;
+      if (problem) {
+        setBlocked(problem);
+        return;
+      }
       try {
-        await prepareScan();
         const s = await startBeaconScan((b) => {
           if (b.tag === sessionTag(id)) {
             lastSeen.current = { code: b.code, rssi: b.rssi, at: Date.now() };
@@ -49,7 +61,7 @@ export default function MarkAttendance() {
         if (cancelled) s();
         else stop = s;
       } catch (e) {
-        if (!cancelled) setBlocked(errorMessage(e));
+        if (!cancelled) setBlocked({ kind: "unavailable", message: errorMessage(e) });
       }
     })();
 
@@ -58,6 +70,17 @@ export default function MarkAttendance() {
       stop?.();
     };
   }, [id, scanKey]);
+
+  // Watch Bluetooth while waiting: if it gets switched off, say so; when it is switched on, scan again
+  useEffect(() => {
+    if (phase !== "scanning") return;
+    const timer = setInterval(async () => {
+      const problem = await checkBluetooth(false); // only checks on/off, never shows a pop-up
+      if (blocked?.kind === "off" && !problem) setScanKey((k) => k + 1);
+      else if (!blocked && problem?.kind === "off") setBlocked(problem);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [phase, blocked]);
 
   // As soon as the beacon is seen, go to the fingerprint step
   useEffect(() => {
@@ -93,7 +116,7 @@ export default function MarkAttendance() {
     // The beacon must still be in range after the fingerprint step
     const seen = lastSeen.current;
     if (!seen || Date.now() - seen.at > 20_000) {
-      fail("Lost the class beacon. Stay close to the lecturer and try again.");
+      fail("Lost the class beacon. Stay close to the lecturer, make sure Bluetooth is on, and try again.");
       return;
     }
 
@@ -125,7 +148,12 @@ export default function MarkAttendance() {
   }
 
   const view = blocked
-    ? { icon: "bluetooth-outline" as const, color: colors.danger, title: "Bluetooth needed", text: blocked }
+    ? {
+        icon: "bluetooth-outline" as const,
+        color: colors.danger,
+        title: blocked.kind === "off" ? "Turn on Bluetooth" : blocked.kind === "permission" ? "Allow Bluetooth" : "Bluetooth isn't available",
+        text: blocked.kind === "off" ? `${blocked.message} We'll carry on automatically once it's on.` : blocked.message,
+      }
     : phase === "done"
     ? { icon: "checkmark-circle" as const, color: "#16A34A", title: "Attendance marked", text: message }
     : phase === "error"
@@ -135,6 +163,8 @@ export default function MarkAttendance() {
     : phase === "submitting"
     ? { icon: "cloud-upload-outline" as const, color: colors.primary, title: "Saving...", text: "Just a moment." }
     : { icon: "bluetooth" as const, color: colors.primary, title: "Looking for your lecturer", text: "Stay inside the classroom with Bluetooth on." };
+
+  const canOpenSettings = blocked?.kind === "off" || blocked?.kind === "permission";
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -155,7 +185,12 @@ export default function MarkAttendance() {
       <View style={styles.footer}>
         {phase === "done" ? (
           <Button title="Done" onPress={() => router.back()} />
-        ) : blocked || phase === "error" ? (
+        ) : blocked ? (
+          <View style={{ gap: 10 }}>
+            {canOpenSettings && <Button title="Open Bluetooth settings" onPress={openBluetoothSettings} />}
+            <Button title="Try again" variant={canOpenSettings ? "outline" : "primary"} onPress={retry} />
+          </View>
+        ) : phase === "error" ? (
           <Button title="Try again" onPress={retry} />
         ) : null}
       </View>
@@ -169,5 +204,5 @@ const styles = StyleSheet.create({
   circle: { width: 140, height: 140, borderRadius: 70, alignItems: "center", justifyContent: "center", marginBottom: 28 },
   title: { fontSize: 22, fontWeight: "700", color: colors.text, textAlign: "center" },
   text: { fontSize: 15, color: colors.muted, textAlign: "center", marginTop: 10, lineHeight: 22 },
-  footer: { padding: 20, minHeight: 94 },
+  footer: { padding: 20, minHeight: 140, justifyContent: "flex-end" },
 });

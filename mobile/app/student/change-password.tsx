@@ -1,2 +1,2 @@
-// app/lecturer/change-password.tsx
+// app/student/change-password.tsx
 export { default } from "@/components/ChangePasswordScreen";

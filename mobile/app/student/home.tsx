@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/components/Button";
+import { ProfileTab, initialsOf } from "@/components/ProfileTab";
 import { DeviceBanner } from "@/components/DeviceBanner";
 import { BarChart, Card, ProgressBar, Segmented, SectionTitle, StatCard, percentColor } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
@@ -47,7 +48,7 @@ type Analytics = {
   }[];
 };
 
-const TABS = ["Overview", "Analytics"] as const;
+const TABS = ["Overview", "Analytics", "Profile"] as const;
 type Tab = (typeof TABS)[number];
 
 const fmtDate = (iso: string) =>
@@ -57,7 +58,7 @@ const fmtDate = (iso: string) =>
 
 export default function StudentHome() {
   const router = useRouter();
-  const { user, token, signOut } = useAuth();
+  const { user, token } = useAuth();
   const [tab, setTab] = useState<Tab>("Overview");
   const [open, setOpen] = useState<OpenSession[]>([]);
   const [courses, setCourses] = useState<Enrollment[]>([]);
@@ -106,14 +107,8 @@ export default function StudentHome() {
           <Text style={styles.hello}>Hi, {user?.fullName.split(" ")[0]}</Text>
           <Text style={styles.sub}>Your attendance dashboard</Text>
         </View>
-        <Pressable
-          hitSlop={12}
-          onPress={async () => {
-            await signOut();
-            router.replace("/role");
-          }}
-        >
-          <Ionicons name="log-out-outline" size={26} color={colors.muted} />
+        <Pressable onPress={() => setTab("Profile")} style={styles.avatar} hitSlop={8}>
+          <Text style={styles.avatarText}>{initialsOf(user?.fullName)}</Text>
         </Pressable>
       </View>
 
@@ -264,6 +259,7 @@ export default function StudentHome() {
               ))}
             </>
           )}
+          {tab === "Profile" && <ProfileTab />}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -272,6 +268,15 @@ export default function StudentHome() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { color: colors.white, fontWeight: "700", fontSize: 14 },
   header: { flexDirection: "row", alignItems: "center", padding: 20, paddingBottom: 12 },
   hello: { fontSize: 24, fontWeight: "700", color: colors.text },
   sub: { fontSize: 14, color: colors.muted, marginTop: 2 },

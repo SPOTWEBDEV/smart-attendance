@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/components/Button";
+import { ProfileTab, initialsOf } from "@/components/ProfileTab";
 import { BarChart, Card, ProgressBar, Segmented, SectionTitle, StatCard, percentColor } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -36,12 +37,12 @@ type Analytics = {
   atRisk: { studentId: string; fullName: string; matricNo: string; courseCode: string; percent: number }[];
 };
 
-const TABS = ["Overview", "Analytics"] as const;
+const TABS = ["Overview", "Analytics", "Profile"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function LecturerHome() {
   const router = useRouter();
-  const { user, token, signOut } = useAuth();
+  const { user, token } = useAuth();
   const [tab, setTab] = useState<Tab>("Overview");
   const [courses, setCourses] = useState<Course[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
@@ -79,17 +80,8 @@ export default function LecturerHome() {
           <Text style={styles.hello} numberOfLines={1}>Hello, {user?.fullName}</Text>
           <Text style={styles.sub}>Your teaching dashboard</Text>
         </View>
-        <Pressable hitSlop={12} style={{ marginRight: 18 }} onPress={() => router.push("/lecturer/change-password")}>
-          <Ionicons name="key-outline" size={24} color={colors.muted} />
-        </Pressable>
-        <Pressable
-          hitSlop={12}
-          onPress={async () => {
-            await signOut();
-            router.replace("/role");
-          }}
-        >
-          <Ionicons name="log-out-outline" size={26} color={colors.muted} />
+        <Pressable onPress={() => setTab("Profile")} style={styles.avatar} hitSlop={8}>
+          <Text style={styles.avatarText}>{initialsOf(user?.fullName)}</Text>
         </Pressable>
       </View>
 
@@ -243,6 +235,7 @@ export default function LecturerHome() {
               )}
             </>
           )}
+          {tab === "Profile" && <ProfileTab />}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -251,6 +244,15 @@ export default function LecturerHome() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { color: colors.white, fontWeight: "700", fontSize: 14 },
   header: { flexDirection: "row", alignItems: "center", padding: 20, paddingBottom: 12 },
   hello: { fontSize: 22, fontWeight: "700", color: colors.text },
   sub: { fontSize: 14, color: colors.muted, marginTop: 2 },

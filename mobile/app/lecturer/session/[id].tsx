@@ -13,7 +13,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/Button";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { makeBeaconName, prepareBroadcast, broadcast, stopBroadcast } from "@/lib/ble";
+import { makeBeaconName, checkBluetooth, broadcast, stopBroadcast, openBluetoothSettings, type BluetoothProblem } from "@/lib/ble";
 import { colors } from "@/lib/theme";
 
 type Attendance = {
@@ -36,7 +36,7 @@ type SessionDetail = {
 
 type RosterStudent = { studentId: string; matricNo: string; fullName: string };
 
-type BeaconState = { status: "idle" | "on" | "error"; message?: string; code?: string };
+type BeaconState = { status: "idle" | "on" | "error"; message?: string; code?: string; kind?: BluetoothProblem["kind"] };
 
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -49,6 +49,7 @@ export default function SessionScreen() {
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [roster, setRoster] = useState<RosterStudent[]>([]);
   const [beacon, setBeacon] = useState<BeaconState>({ status: "idle" });
+  const [retryKey, setRetryKey] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [error, setError] = useState("");
   const [closing, setClosing] = useState(false);
@@ -93,50 +94,72 @@ export default function SessionScreen() {
     return () => { clearInterval(poll); clearInterval(tick); };
   }, [status, loadSession]);
 
-  // Beacon loop: get the code, broadcast it, repeat when it rotates
+  // Beacon loop: make sure Bluetooth is ready, get the code, broadcast it, repeat when it rotates.
+  // If Bluetooth is switched off (now or later) the screen says so, and broadcasting starts again
+  // by itself as soon as it is back on.
   useEffect(() => {
     if (status !== "OPEN" || !id) return;
     let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
+    let off = false; // true while the problem is "Bluetooth is off"
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
-    async function run() {
+    async function tick() {
+      if (stopped) return;
+
+      const problem = await checkBluetooth(true);
+      if (stopped) return;
+      if (problem) {
+        off = problem.kind === "off";
+        setBeacon({ status: "error", message: problem.message, kind: problem.kind });
+        return; // the watcher below resumes by itself when Bluetooth comes back on
+      }
+      off = false;
+
       try {
-        await prepareBroadcast();
+        const b = await api<{ code: string; expiresInSec: number }>(`/api/sessions/${id}/beacon`, { token });
+        if (stopped) return;
+        await broadcast(makeBeaconName(id, b.code));
+        if (stopped) return;
+        setBeacon({ status: "on", code: b.code });
+        timer = setTimeout(tick, (b.expiresInSec + 0.5) * 1000); // right after the code rotates
       } catch (e) {
-        if (!stopped) setBeacon({ status: "error", message: errorMessage(e) });
-        return;
-      }
-
-      async function tick() {
-        try {
-          const b = await api<{ code: string; expiresInSec: number }>(`/api/sessions/${id}/beacon`, { token });
-          if (stopped) return;
-          await broadcast(makeBeaconName(id, b.code));
-          if (stopped) return;
-          setBeacon({ status: "on", code: b.code });
-          timer = setTimeout(tick, (b.expiresInSec + 0.5) * 1000); // right after the code rotates
-        } catch (e) {
-          if (stopped) return;
-          // The server says the session is no longer open (it was just closed): stop quietly
-          if (e instanceof ApiError && e.status === 404) {
-            stopped = true;
-            loadSession();
-            return;
-          }
-          setBeacon({ status: "error", message: errorMessage(e) });
-          timer = setTimeout(tick, 5000); // try again
+        if (stopped) return;
+        // The server says the session is no longer open (it was just closed): stop quietly
+        if (e instanceof ApiError && e.status === 404) {
+          stopped = true;
+          loadSession();
+          return;
         }
+        setBeacon({ status: "error", message: errorMessage(e) });
+        timer = setTimeout(tick, 5000); // try again
       }
-      tick();
     }
 
-    run();
+    // Notice Bluetooth being switched off or on while the class is running
+    const watcher = setInterval(async () => {
+      if (stopped) return;
+      const problem = await checkBluetooth(false); // only checks on/off, never shows a pop-up
+      if (stopped) return;
+      if (problem?.kind === "off" && !off) {
+        off = true;
+        clearTimeout(timer);
+        stopBroadcast();
+        setBeacon({ status: "error", message: problem.message, kind: "off" });
+      } else if (!problem && off) {
+        off = false;
+        clearTimeout(timer);
+        tick(); // back on: start broadcasting again right away
+      }
+    }, 3000);
+
+    tick();
     return () => {
       stopped = true;
+      clearInterval(watcher);
       clearTimeout(timer);
       stopBroadcast();
     };
-  }, [status, id, token]);
+  }, [status, id, token, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function confirmClose() {
     Alert.alert("Close session?", "Students won't be able to mark attendance after this.", [
@@ -220,7 +243,21 @@ export default function SessionScreen() {
                   : "Starting beacon..."}
               </Text>
             </View>
-            {beacon.status === "error" && <Text style={styles.error}>{beacon.message}</Text>}
+            {beacon.status === "error" && (
+              <View style={{ alignItems: "center", marginTop: 8 }}>
+                <Text style={styles.error}>{beacon.message}</Text>
+                {(beacon.kind === "off" || beacon.kind === "permission") && (
+                  <Pressable onPress={openBluetoothSettings} hitSlop={8} style={{ marginTop: 8 }}>
+                    <Text style={styles.link}>Open Bluetooth settings</Text>
+                  </Pressable>
+                )}
+                {beacon.kind !== "off" && (
+                  <Pressable onPress={() => setRetryKey((k) => k + 1)} hitSlop={8} style={{ marginTop: 8 }}>
+                    <Text style={styles.link}>Try again</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
 
             <Text style={styles.timer}>{remaining > 0 ? `${mm}:${ss}` : "Window ended"}</Text>
             <Text style={styles.hint}>

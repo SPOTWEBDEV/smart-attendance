@@ -1,3 +1,6 @@
+import { Linking, Platform } from "react-native";
+import Constants, { ExecutionEnvironment } from "expo-constants";
+
 // lib/ble.ts
 // Shared by the lecturer (broadcast) and student (scan) sides.
 //
@@ -25,22 +28,64 @@ export function parseBeaconName(name?: string | null) {
 
 type BleModule = typeof import("munim-bluetooth");
 
-// Loaded lazily so the rest of the app still opens in Expo Go
-// (the Bluetooth library needs a development build).
+// Expo Go does not contain the Bluetooth native code. Trying to load it there makes a red error
+// screen appear, so we don't even try.
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+// Loaded lazily so the rest of the app still opens without the Bluetooth library.
 async function loadBle(): Promise<BleModule> {
+  if (isExpoGo) {
+    throw new Error(
+      "Bluetooth beacons don't work in Expo Go. Install the development build of this app instead (see SETUP.md)."
+    );
+  }
   try {
     return await import("munim-bluetooth");
   } catch {
-    throw new Error("Bluetooth isn't available in this build. Use a development build, not Expo Go.");
+    throw new Error("Bluetooth isn't available in this build. Use the development build, not Expo Go.");
   }
 }
 
-export async function prepareBroadcast() {
-  const ble = await loadBle();
-  const allowed = await ble.requestBluetoothPermission();
-  if (!allowed) throw new Error("Bluetooth permission was not granted.");
-  const enabled = await ble.isBluetoothEnabled();
-  if (!enabled) throw new Error("Turn on Bluetooth to broadcast the class beacon.");
+export type BluetoothProblem = {
+  kind: "unavailable" | "permission" | "off";
+  message: string;
+};
+
+// Is Bluetooth ready to use? Returns null when it is, or what is wrong.
+// askPermission = false only checks whether Bluetooth is switched on (no permission pop-up),
+// so it is safe to call every few seconds.
+export async function checkBluetooth(askPermission = true): Promise<BluetoothProblem | null> {
+  let ble: BleModule;
+  try {
+    ble = await loadBle();
+  } catch (e) {
+    return { kind: "unavailable", message: e instanceof Error ? e.message : "Bluetooth isn't available." };
+  }
+
+  try {
+    if (askPermission) {
+      const allowed = await ble.requestBluetoothPermission();
+      if (!allowed) {
+        return { kind: "permission", message: "Bluetooth permission is needed. Allow it in your phone's settings." };
+      }
+    }
+    const enabled = await ble.isBluetoothEnabled();
+    if (!enabled) {
+      return { kind: "off", message: "Bluetooth is turned off. Turn it on to continue." };
+    }
+  } catch (e) {
+    return { kind: "unavailable", message: e instanceof Error ? e.message : "Couldn't check Bluetooth." };
+  }
+  return null;
+}
+
+// Apps can't switch Bluetooth on silently, so we send the user to the right settings screen.
+export function openBluetoothSettings() {
+  if (Platform.OS === "android") {
+    Linking.sendIntent("android.settings.BLUETOOTH_SETTINGS").catch(() => Linking.openSettings());
+  } else {
+    Linking.openSettings();
+  }
 }
 
 // Tracks whether we are advertising, so "stop" is only ever called when something is running
@@ -77,14 +122,6 @@ export async function stopBroadcast() {
 }
 
 // ---------- student side: scanning ----------
-
-export async function prepareScan() {
-  const ble = await loadBle();
-  const allowed = await ble.requestBluetoothPermission();
-  if (!allowed) throw new Error("Bluetooth permission was not granted.");
-  const enabled = await ble.isBluetoothEnabled();
-  if (!enabled) throw new Error("Turn on Bluetooth so your phone can find the class beacon.");
-}
 
 export type BeaconSighting = { tag: string; code: string; rssi?: number };
 
