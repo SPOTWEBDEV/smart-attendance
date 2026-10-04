@@ -43,17 +43,31 @@ export async function prepareBroadcast() {
   if (!enabled) throw new Error("Turn on Bluetooth to broadcast the class beacon.");
 }
 
+// Tracks whether we are advertising, so "stop" is only ever called when something is running
+// (stopping something that never started can throw inside the native Bluetooth code).
+let advertising = false;
+let epoch = 0; // bumped on every stop, so a start that was still loading doesn't switch the beacon back on
+
 export async function broadcast(name: string) {
+  const mine = epoch;
   const ble = await loadBle();
-  try {
-    ble.stopAdvertising();
-  } catch {
-    // nothing was advertising yet
+  if (mine !== epoch) return; // the session was closed while we were getting ready
+
+  if (advertising) {
+    try {
+      ble.stopAdvertising(); // swap the old code for the new one
+    } catch {
+      // ignore
+    }
   }
   ble.startAdvertising({ serviceUUIDs: [BEACON_SERVICE_UUID], localName: name });
+  advertising = true;
 }
 
 export async function stopBroadcast() {
+  epoch += 1;
+  if (!advertising) return;
+  advertising = false;
   try {
     const ble = await loadBle();
     ble.stopAdvertising();
@@ -104,6 +118,10 @@ export async function startBeaconScan(onBeacon: (b: BeaconSighting) => void) {
     } catch {
       // ignore
     }
-    remove();
+    try {
+      remove();
+    } catch {
+      // ignore
+    }
   };
 }

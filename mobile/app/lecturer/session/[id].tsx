@@ -8,10 +8,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TextInput, View, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useKeepAwake } from "expo-keep-awake";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, type ErrorBoundaryProps } from "expo-router";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/Button";
-import { api, errorMessage } from "@/lib/api";
+import { api, ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { makeBeaconName, prepareBroadcast, broadcast, stopBroadcast } from "@/lib/ble";
 import { colors } from "@/lib/theme";
@@ -117,6 +117,12 @@ export default function SessionScreen() {
           timer = setTimeout(tick, (b.expiresInSec + 0.5) * 1000); // right after the code rotates
         } catch (e) {
           if (stopped) return;
+          // The server says the session is no longer open (it was just closed): stop quietly
+          if (e instanceof ApiError && e.status === 404) {
+            stopped = true;
+            loadSession();
+            return;
+          }
           setBeacon({ status: "error", message: errorMessage(e) });
           timer = setTimeout(tick, 5000); // try again
         }
@@ -142,9 +148,11 @@ export default function SessionScreen() {
           setClosing(true);
           try {
             await api(`/api/sessions/${id}/close`, { method: "POST", token });
+            setSession((cur) => (cur ? { ...cur, status: "CLOSED" } : cur)); // stops the beacon right away
             await loadSession();
           } catch (e) {
             setError(errorMessage(e));
+            Alert.alert("Couldn't close the session", errorMessage(e));
           } finally {
             setClosing(false);
           }
@@ -336,3 +344,18 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
 });
+
+// If anything on this screen ever throws, show the message instead of closing the app.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScreenHeader title="Something went wrong" />
+      <View style={{ padding: 20 }}>
+        <Text style={[styles.error, { textAlign: "left", marginTop: 0 }]}>{error.message}</Text>
+        <View style={{ marginTop: 20 }}>
+          <Button title="Try again" onPress={retry} />
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
