@@ -23,7 +23,9 @@
         "android.permission.BLUETOOTH_SCAN",
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "plugins": [
@@ -32,12 +34,24 @@
       "munim-bluetooth",
       [
         "expo-local-authentication",
-        { "faceIDPermission": "Confirm it's you when marking attendance" }
+        {
+          "faceIDPermission": "Confirm it's you when marking attendance"
+        }
       ],
       [
         "expo-build-properties",
-        { "android": { "usesCleartextTraffic": true } }
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a8634054-b4a6-4da9-8783-e8ac183e4a38"
+      }
+    }
   }
 }
