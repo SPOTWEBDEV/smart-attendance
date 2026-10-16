@@ -1,12 +1,41 @@
 // app/page.tsx  -  public landing page
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
+  metadataBase: new URL("https://smart-attendance-esut.vercel.app"),
+
   title: "Smart Attendance | ESUT",
+
   description:
-    "Fingerprint attendance verified by Bluetooth proximity, built for Enugu State University of Science and Technology.",
+    "Fingerprint attendance verified by Bluetooth proximity, built for Enugu State University of Science and Technology. Secure, reliable classroom attendance for students and lecturers.",
+
+  openGraph: {
+    title: "Smart Attendance | ESUT",
+    description:
+      "Mark classroom attendance securely with fingerprint verification and Bluetooth proximity. Built for ESUT students and lecturers.",
+    url: "/",
+    siteName: "Smart Attendance | ESUT",
+    images: [
+      {
+        url: "/logo.png",
+        alt: "Smart Attendance for Enugu State University of Science and Technology",
+      },
+    ],
+    locale: "en_NG",
+    type: "website",
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Smart Attendance | ESUT",
+    description:
+      "Secure classroom attendance with fingerprint verification and Bluetooth proximity, built for ESUT.",
+    images: ["/logo.png"],
+  },
 };
+
 
 const steps = [
   {
