@@ -52,12 +52,12 @@ export default function Landing() {
         <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-white rounded-xl p-1.5">
-              <Image src="/logo.jpg" alt="ESUT logo" width={36} height={40} priority />
+              <Image src="/logo.png" alt="ESUT logo" width={80} height={110} priority />
             </div>
-            <div className="leading-tight text-white">
+            {/* <div className="leading-tight text-white">
               <p className="font-bold">Smart Attendance</p>
               <p className="text-xs text-white/70">ESUT</p>
-            </div>
+            </div> */}
           </div>
           <Link
             href="/admin/login"
@@ -206,7 +206,7 @@ export default function Landing() {
         <div className="mx-auto max-w-6xl px-6 py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6 text-sm">
           <div className="flex items-center gap-3">
             <div className="bg-white rounded-lg p-1">
-              <Image src="/logo.jpg" alt="ESUT logo" width={28} height={31} />
+              <Image src="/logo.png" alt="ESUT logo" width={28} height={31} />
             </div>
             <div>
               <p className="text-slate-200 font-medium">Enugu State University of Science and Technology</p>

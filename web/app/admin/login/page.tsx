@@ -41,7 +41,7 @@ export default function AdminLogin() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
       <form onSubmit={onSubmit} className="w-full max-w-sm bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-        <Image src="/logo.jpg" alt="ESUT logo" width={51} height={56} className="mb-5" priority />
+        <Image src="/logo.png" alt="ESUT logo" width={80} height={110} className="mb-5" priority />
         <h1 className="text-2xl font-bold text-slate-900">Admin sign in</h1>
         <p className="text-sm text-slate-500 mt-1 mb-6">ESUT Smart Attendance dashboard</p>
 

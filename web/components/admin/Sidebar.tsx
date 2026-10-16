@@ -27,9 +27,8 @@ export function Sidebar({ name }: { name: string }) {
       <div className="hidden md:block">
         <div className="flex items-center gap-3">
           <div className="bg-white rounded-lg p-1.5">
-            <Image src="/logo.jpg" alt="ESUT logo" width={30} height={33} />
+            <Image src="/logo.png" alt="ESUT logo" width={60} height={100} />
           </div>
-          <p className="text-lg font-bold leading-tight">Smart Attendance</p>
         </div>
         <p className="text-xs text-slate-400 mt-3">Signed in as {name}</p>
       </div>
